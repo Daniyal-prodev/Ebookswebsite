@@ -1,0 +1,17 @@
+{
+  "name": "ebookswebsite",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n backend,frontend -c blue,green \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && poetry run uvicorn app.main:app --reload --port 8000",
+    "install:all": "npm i && cd frontend && npm i && cd ../backend && poetry install"
+  },
+  "dependencies": {
+    "concurrently": "^9.0.1"
+  }
+}
