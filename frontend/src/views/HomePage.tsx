@@ -11,22 +11,28 @@ export default function HomePage() {
   }, []);
   return (
     <>
-      <section className="max-w-6xl mx-auto px-4 py-16 grid md:grid-cols-2 gap-10 items-center">
+      <section className="relative max-w-7xl mx-auto px-4 py-20 grid md:grid-cols-2 gap-12 items-center">
         <div>
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">
-            Magical stories for curious kids
+          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-pink-600 via-fuchsia-600 to-indigo-600">
+              Magical stories
+            </span>{" "}
+            for curious kids
           </h1>
-          <p className="mt-4 text-slate-600">
+          <p className="mt-5 text-slate-600 text-lg leading-relaxed">
             Explore our handpicked library of delightful children’s ebooks designed to spark imagination and foster a love of reading.
           </p>
-          <div className="mt-6 flex gap-3">
-            <Button asChild>
-              <Link to="/catalog">Buy now</Link>
-            </Button>
+          <div className="mt-7 flex flex-wrap gap-3">
+            <Button asChild><Link to="/catalog">Browse Catalog</Link></Button>
+            <Button variant="outline" asChild><Link to="/about">Learn More</Link></Button>
           </div>
         </div>
-        <div className="rounded-xl bg-white shadow p-0 overflow-hidden">
-          <img src="https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1600&auto=format&fit=crop" alt="Kids reading" className="w-full h-72 object-cover" />
+        <div className="rounded-2xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden">
+          <img
+            src="https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1600&auto=format&fit=crop"
+            alt="Kids reading"
+            className="w-full h-[20rem] md:h-[24rem] object-cover"
+          />
         </div>
       </section>
       <section className="max-w-6xl mx-auto px-4 pb-16">
@@ -51,14 +57,18 @@ export default function HomePage() {
         </div>
 
         <h2 className="text-2xl font-bold mb-6 mt-10">All Books</h2>
-        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
+        <div className="grid xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {products.map(p => {
             const sale = typeof p.sale_price_cents === "number" && p.sale_price_cents! >= 0;
             const price = sale ? p.sale_price_cents! : p.price_cents;
             return (
-              <Link key={p.id} to={`/product/${p.id}`} className="bg-white rounded-xl shadow hover:shadow-lg transition p-4">
-                {p.cover_image_url && <img src={p.cover_image_url} alt={p.title} className="h-32 w-full object-cover rounded mb-3" />}
-                <div className="font-semibold">{p.title}</div>
+              <Link key={p.id} to={`/product/${p.id}`} className="group bg-white rounded-xl border border-slate-200 hover:border-pink-200 shadow-sm hover:shadow-md transition p-4">
+                {p.cover_image_url && (
+                  <div className="aspect-[4/3] w-full overflow-hidden rounded-lg mb-3">
+                    <img src={p.cover_image_url} alt={p.title} className="h-full w-full object-cover group-hover:scale-[1.02] transition" />
+                  </div>
+                )}
+                <div className="font-semibold line-clamp-1">{p.title}</div>
                 <div className="mt-2 font-bold flex items-center gap-2">
                   <span>${(price/100).toFixed(2)}</span>
                   {sale && <span className="text-slate-400 line-through text-sm">${(p.price_cents/100).toFixed(2)}</span>}

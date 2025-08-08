@@ -28,20 +28,22 @@ export default function ProductPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10 space-y-10">
-      <div className="grid md:grid-cols-2 gap-8 items-start">
-        <div className="space-y-3">
+      <div className="grid md:grid-cols-2 gap-10 items-start">
+        <div className="space-y-4">
           {product.images && product.images.length > 0 ? (
             <div className="grid grid-cols-3 gap-3">
               {product.images.map((url, i) => (
-                <img key={i} src={url} className="rounded-lg shadow object-cover w-full h-40" />
+                <img key={i} src={url} className="rounded-xl shadow object-cover w-full h-40" alt="" />
               ))}
             </div>
           ) : (
-            product.cover_image_url && <img src={product.cover_image_url} className="rounded-xl shadow" />
+            product.cover_image_url && (
+              <img src={product.cover_image_url} className="rounded-2xl shadow-xl ring-1 ring-slate-200" alt={product.title} />
+            )
           )}
         </div>
         <div>
-          <h2 className="text-3xl font-bold">{product.title}</h2>
+          <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">{product.title}</h2>
           <div className="text-slate-600">{product.author}</div>
           <div className="mt-2 text-sm text-slate-500">{product.age_group ? `Age: ${product.age_group}` : null}</div>
           <div className="mt-6 text-2xl font-extrabold flex items-center gap-3">
@@ -49,8 +51,11 @@ export default function ProductPage() {
             {typeof product.sale_price_cents === "number" && product.sale_price_cents! >= 0 && (
               <span className="text-slate-400 line-through text-lg">${(product.price_cents/100).toFixed(2)}</span>
             )}
+            {typeof product.sale_price_cents === "number" && product.sale_price_cents! >= 0 && (
+              <span className="px-2 py-0.5 rounded-full text-xs bg-pink-100 text-pink-700">Sale</span>
+            )}
           </div>
-          <div className="mt-4">{product.description}</div>
+          <div className="mt-4 leading-relaxed text-slate-700">{product.description}</div>
           {product.description_sections && product.description_sections.length > 0 && (
             <div className="mt-4 space-y-3">
               {product.description_sections.map((section, i) => (
@@ -59,13 +64,13 @@ export default function ProductPage() {
             </div>
           )}
           {product.tags && product.tags.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-5 flex flex-wrap gap-2">
               {product.tags.map((t, i) => (
                 <span key={i} className="px-2 py-1 text-xs rounded-full bg-pink-100 text-pink-700">{t}</span>
               ))}
             </div>
           )}
-          <div className="mt-6 flex gap-3">
+          <div className="mt-7 flex gap-3">
             <Button onClick={onAdd}>Add to Cart</Button>
             <Button variant="outline" onClick={onBuyNow}>Buy Now</Button>
           </div>
