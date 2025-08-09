@@ -7,7 +7,9 @@ import uuid
 import os
 import hmac
 import hashlib
-from .schemas import Product, ProductCreate, ProductUpdate, LoginRequest, LoginResponse, OrderCreate, Order, PayoneerWebhook, CustomerSignup, CustomerLogin, CustomerMe
+import smtplib
+from email.mime.text import MIMEText
+from .schemas import Product, ProductCreate, ProductUpdate, LoginRequest, LoginResponse, OrderCreate, Order, PayoneerWebhook, CustomerSignup, CustomerLogin, CustomerMe, ContactMessage
 from .auth import authenticate, require_admin
 
 app = FastAPI()
@@ -78,7 +80,28 @@ def me(credentials: HTTPAuthorizationCredentials = Depends(security)):
     return CustomerMe(email=email, name=user.get("name") or None)
 
 @app.post("/contact")
-def contact():
+def contact(payload: ContactMessage):
+    recipient = os.getenv("CONTACT_RECIPIENT", os.getenv("ADMIN_EMAIL", "aribdaniyal88@gmail.com"))
+    subject = f"[Contact] {payload.name} <{payload.email}>"
+    body = f"Name: {payload.name}\nEmail: {payload.email}\n\nMessage:\n{payload.message}"
+    host = os.getenv("SMTP_HOST", "")
+    port = int(os.getenv("SMTP_PORT", "587"))
+    username = os.getenv("SMTP_USERNAME", "")
+    password = os.getenv("SMTP_PASSWORD", "")
+    use_tls = os.getenv("SMTP_USE_TLS", "true").lower() != "false"
+
+    if host and username and password:
+        msg = MIMEText(body, "plain", "utf-8")
+        msg["Subject"] = subject
+        msg["From"] = username
+        msg["To"] = recipient
+        with smtplib.SMTP(host, port, timeout=15) as server:
+            if use_tls:
+                server.starttls()
+            server.login(username, password)
+            server.sendmail(username, [recipient], msg.as_string())
+    else:
+        print("CONTACT EMAIL (dev fallback):", subject, body)
     return {"ok": True}
 
 @app.get("/products", response_model=List[Product])
