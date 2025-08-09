@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl, Field
+from pydantic import BaseModel, HttpUrl, Field, EmailStr
 from typing import Optional, List
 from datetime import datetime
 
@@ -92,3 +92,7 @@ class CustomerLogin(BaseModel):
 class CustomerMe(BaseModel):
     email: str
     name: Optional[str] = None
+class ContactMessage(BaseModel):
+    name: str
+    email: EmailStr
+    message: str
