@@ -1,15 +1,39 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function ContactPage() {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (sent) {
+      try {
+        const c = document.createElement("div");
+        c.className = "fixed inset-0 pointer-events-none";
+        c.innerHTML = '<div class="absolute inset-0 animate-pulse opacity-20 bg-green-300"></div>';
+        document.body.appendChild(c);
+        setTimeout(() => document.body.removeChild(c), 1200);
+      } catch {}
+    }
+  }, [sent]);
+
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
+    const form = e.currentTarget;
+    const data = {
+      name: (form.elements.namedItem("name") as HTMLInputElement).value,
+      email: (form.elements.namedItem("email") as HTMLInputElement).value,
+      message: (form.elements.namedItem("message") as HTMLTextAreaElement).value,
+    };
     try {
-      await fetch((import.meta as any).env.VITE_API_URL + "/contact", { method: "POST" });
+      const res = await fetch((import.meta as any).env.VITE_API_URL + "/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to send");
       setSent(true);
+      form.reset();
     } finally {
       setLoading(false);
     }
@@ -23,20 +47,20 @@ export default function ContactPage() {
       <form onSubmit={onSubmit} className="bg-white rounded-xl shadow p-6 space-y-4">
         <div>
           <label className="block text-sm font-medium">Your Name</label>
-          <input required className="mt-1 w-full border rounded px-3 py-2" placeholder="Jane Doe" />
+          <input name="name" required className="mt-1 w-full border rounded px-3 py-2" placeholder="Jane Doe" />
         </div>
         <div>
           <label className="block text-sm font-medium">Email</label>
-          <input required type="email" className="mt-1 w-full border rounded px-3 py-2" placeholder="you@example.com" />
+          <input name="email" required type="email" className="mt-1 w-full border rounded px-3 py-2" placeholder="you@example.com" />
         </div>
         <div>
           <label className="block text-sm font-medium">Message</label>
-          <textarea required className="mt-1 w-full border rounded px-3 py-2 h-28" placeholder="How can we help?" />
+          <textarea name="message" required className="mt-1 w-full border rounded px-3 py-2 h-28" placeholder="How can we help?" />
         </div>
         <button disabled={loading} className="px-4 py-2 rounded bg-pink-600 text-white disabled:opacity-60">
           {loading ? "Sending..." : "Send message"}
         </button>
-        {sent && <div className="text-green-600 text-sm">Thanks! We’ll get back to you shortly.</div>}
+        {sent && <div className="text-green-600 text-sm animate-pulse">Thanks! We’ll get back to you shortly.</div>}
       </form>
     </div>
   );

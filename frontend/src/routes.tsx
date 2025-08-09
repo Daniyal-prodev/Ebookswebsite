@@ -15,6 +15,7 @@ import AdminLoginPage from "./views/admin/AdminLoginPage";
 import AdminDashboard from "./views/admin/AdminDashboard";
 import AdminProducts from "./views/admin/AdminProducts";
 import AdminEditProduct from "./views/admin/AdminEditProduct";
+import AdminCreateProduct from "./views/admin/AdminCreateProduct";
 
 function ProtectedAdmin({ children }: { children: JSX.Element }) {
   const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
@@ -53,6 +54,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <AdminProducts /> },
       { path: "products/:id", element: <AdminEditProduct /> },
+      { path: "products/new", element: <AdminCreateProduct /> },
     ],
   },
 ]);
