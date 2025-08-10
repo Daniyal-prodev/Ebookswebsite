@@ -8,6 +8,7 @@ import os
 import hmac
 import hashlib
 import smtplib
+import json
 from email.mime.text import MIMEText
 from .schemas import Product, ProductCreate, ProductUpdate, LoginRequest, LoginResponse, OrderCreate, Order, PayoneerWebhook, CustomerSignup, CustomerLogin, CustomerMe, ContactMessage
 from .auth import authenticate, require_admin
@@ -27,6 +28,11 @@ security = HTTPBearer()
 _products: Dict[str, Product] = {}
 _orders: Dict[str, Order] = {}
 _customers: Dict[str, Dict[str, str]] = {}
+PRODUCTS_DB_PATH = os.getenv("PRODUCTS_DB_PATH", os.path.join(os.path.dirname(__file__), "products.json"))
+PRODUCTS_HISTORY_PATH = os.getenv("PRODUCTS_HISTORY_PATH", os.path.join(os.path.dirname(__file__), "products_history.json"))
+
+_public_messages: List[Dict[str, str]] = []
+_product_history: Dict[str, List[Dict[str, str]]] = {}
 
 CUSTOMER_SECRET = os.getenv("CUSTOMER_SECRET", os.getenv("ADMIN_SECRET", "change-me"))
 
@@ -45,6 +51,43 @@ def _verify_customer(token: str) -> str | None:
     if hmac.compare_digest(sig, expected):
         return email
     return None
+def _save_products():
+    try:
+        data = {pid: p.model_dump() for pid, p in _products.items()}
+        with open(PRODUCTS_DB_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+    except Exception:
+        pass
+
+def _load_products():
+    try:
+        if os.path.exists(PRODUCTS_DB_PATH):
+            with open(PRODUCTS_DB_PATH, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+                for pid, pd in raw.items():
+                    _products[pid] = Product(**pd)
+    except Exception:
+        pass
+
+def _save_history():
+    try:
+        with open(PRODUCTS_HISTORY_PATH, "w", encoding="utf-8") as f:
+            json.dump(_product_history, f)
+    except Exception:
+        pass
+
+def _load_history():
+    try:
+        if os.path.exists(PRODUCTS_HISTORY_PATH):
+            with open(PRODUCTS_HISTORY_PATH, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+                for k, v in raw.items():
+                    _product_history[k] = v
+    except Exception:
+        pass
+
+_load_products()
+_load_history()
 
 @app.get("/healthz")
 async def healthz():
@@ -103,6 +146,34 @@ def contact(payload: ContactMessage):
     else:
         print("CONTACT EMAIL (dev fallback):", subject, body)
     return {"ok": True}
+@app.get("/oauth/{provider}/start")
+def oauth_start(provider: str):
+    client_id = os.getenv(f"{provider.upper()}_CLIENT_ID", "")
+    redirect_url = os.getenv(f"{provider.upper()}_REDIRECT_URL", "")
+    if not client_id or not redirect_url:
+        return {"status": "disabled"}
+    auth_url = f"https://auth.example/{provider}?client_id={client_id}&redirect_uri={redirect_url}&response_type=code&scope=basic"
+    return {"status": "ok", "auth_url": auth_url}
+
+@app.get("/contact/public")
+def list_public_messages():
+    return _public_messages
+
+@app.post("/contact/public")
+def post_public_message(payload: ContactMessage):
+    entry = {"name": payload.name, "email": payload.email, "message": payload.message, "created_at": datetime.utcnow().isoformat()}
+    _public_messages.append(entry)
+    return {"ok": True}
+
+@app.get("/oauth/{provider}/callback")
+def oauth_callback(provider: str, code: str | None = None, email: str | None = None):
+    auto = os.getenv("OAUTH_DEV_AUTO_LOGIN", "false").lower() == "true"
+    if auto and (email or code):
+        user_email = email or f"user+{provider}@example.com"
+        token = _sign_customer(user_email)
+        return {"access_token": token}
+    return {"status": "disabled"}
+
 
 @app.get("/products", response_model=List[Product])
 def list_products(visible_only: bool = True):
@@ -126,6 +197,15 @@ def create_product(payload: ProductCreate, _: bool = Depends(require_admin)):
     pid = str(uuid.uuid4())
     prod = Product(id=pid, created_at=now, updated_at=now, **payload.model_dump())
     _products[pid] = prod
+    _product_history.setdefault(pid, []).append({"action": "create", "at": now.isoformat(), "data": prod.model_dump()})
+    try:
+        data = {pid2: p.model_dump() for pid2, p in _products.items()}
+        with open(PRODUCTS_DB_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        with open(PRODUCTS_HISTORY_PATH, "w", encoding="utf-8") as f:
+            json.dump(_product_history, f)
+    except Exception:
+        pass
     return prod
 
 @app.put("/admin/products/{product_id}", response_model=Product)
@@ -133,20 +213,49 @@ def update_product(product_id: str, payload: ProductUpdate, _: bool = Depends(re
     if product_id not in _products:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
     existing = _products[product_id]
+    before = existing.model_dump()
     data = existing.model_dump()
     for k, v in payload.model_dump(exclude_unset=True).items():
         data[k] = v
     data["updated_at"] = datetime.utcnow()
     updated = Product(**data)
     _products[product_id] = updated
+    _product_history.setdefault(product_id, []).append({
+        "action": "update",
+        "at": data["updated_at"].isoformat() if hasattr(data["updated_at"], "isoformat") else str(data["updated_at"]),
+        "before": before,
+        "after": updated.model_dump(),
+    })
+    try:
+        data2 = {pid2: p.model_dump() for pid2, p in _products.items()}
+        with open(PRODUCTS_DB_PATH, "w", encoding="utf-8") as f:
+            json.dump(data2, f)
+        with open(PRODUCTS_HISTORY_PATH, "w", encoding="utf-8") as f:
+            json.dump(_product_history, f)
+    except Exception:
+        pass
     return updated
 
 @app.delete("/admin/products/{product_id}")
 def delete_product(product_id: str, _: bool = Depends(require_admin)):
     if product_id not in _products:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    removed = _products[product_id].model_dump()
     del _products[product_id]
+    _product_history.setdefault(product_id, []).append({"action": "delete", "at": datetime.utcnow().isoformat(), "before": removed})
+    try:
+        data2 = {pid2: p.model_dump() for pid2, p in _products.items()}
+        with open(PRODUCTS_DB_PATH, "w", encoding="utf-8") as f:
+            json.dump(data2, f)
+        with open(PRODUCTS_HISTORY_PATH, "w", encoding="utf-8") as f:
+            json.dump(_product_history, f)
+    except Exception:
+        pass
     return {"ok": True}
+
+@app.get("/admin/products/{product_id}/history")
+def product_history(product_id: str, _: bool = Depends(require_admin)):
+    return _product_history.get(product_id, [])
 
 @app.post("/orders", response_model=Order)
 def create_order(payload: OrderCreate):

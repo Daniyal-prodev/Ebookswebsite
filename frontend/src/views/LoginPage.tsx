@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { apiPost } from "@/lib/api";
+import { apiPost, apiGet } from "@/lib/api";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -32,6 +32,11 @@ export default function LoginPage() {
         <input type="password" className="w-full border rounded px-3 py-2" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} />
         {error && <div className="text-red-600 text-sm">{error}</div>}
         <button disabled={loading} className="w-full bg-pink-600 text-white rounded py-2">{loading ? "Signing in..." : "Sign in"}</button>
+        <div className="pt-2 grid grid-cols-1 gap-2">
+          <button type="button" className="w-full border rounded py-2" onClick={async()=>{const r=await apiGet<any>("/oauth/google/start"); if(r.auth_url){window.location.href=r.auth_url;} else {alert("Google sign-in not configured");}}}>Continue with Google</button>
+          <button type="button" className="w-full border rounded py-2" onClick={async()=>{const r=await apiGet<any>("/oauth/facebook/start"); if(r.auth_url){window.location.href=r.auth_url;} else {alert("Facebook sign-in not configured");}}}>Continue with Facebook</button>
+          <button type="button" className="w-full border rounded py-2" onClick={async()=>{const r=await apiGet<any>("/oauth/github/start"); if(r.auth_url){window.location.href=r.auth_url;} else {alert("GitHub sign-in not configured");}}}>Continue with GitHub</button>
+        </div>
       </form>
       <div className="text-sm mt-3">No account? <Link className="text-pink-600 underline" to="/signup">Sign up</Link></div>
     </div>

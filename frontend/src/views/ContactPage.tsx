@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 export default function ContactPage() {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [publicMode, setPublicMode] = useState(false);
+  const [publicMessages, setPublicMessages] = useState<{name:string;message:string;created_at:string}[]>([]);
 
   useEffect(() => {
     if (sent) {
@@ -16,6 +18,13 @@ export default function ContactPage() {
     }
   }, [sent]);
 
+  useEffect(() => {
+    fetch((import.meta as any).env.VITE_API_URL + "/contact/public")
+      .then(r => r.ok ? r.json() : [])
+      .then(setPublicMessages)
+      .catch(()=>{});
+  }, []);
+
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
@@ -26,7 +35,8 @@ export default function ContactPage() {
       message: (form.elements.namedItem("message") as HTMLTextAreaElement).value,
     };
     try {
-      const res = await fetch((import.meta as any).env.VITE_API_URL + "/contact", {
+      const url = publicMode ? "/contact/public" : "/contact";
+      const res = await fetch((import.meta as any).env.VITE_API_URL + url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -34,6 +44,12 @@ export default function ContactPage() {
       if (!res.ok) throw new Error("Failed to send");
       setSent(true);
       form.reset();
+      if (publicMode) {
+        fetch((import.meta as any).env.VITE_API_URL + "/contact/public")
+          .then(r => r.ok ? r.json() : [])
+          .then(setPublicMessages)
+          .catch(()=>{});
+      }
     } finally {
       setLoading(false);
     }
@@ -53,6 +69,10 @@ export default function ContactPage() {
           <label className="block text-sm font-medium">Email</label>
           <input name="email" required type="email" className="mt-1 w-full border rounded px-3 py-2" placeholder="you@example.com" />
         </div>
+        <div className="flex items-center gap-4">
+          <label className="text-sm"><input type="radio" name="mode" checked={!publicMode} onChange={()=>setPublicMode(false)} /> Private</label>
+          <label className="text-sm"><input type="radio" name="mode" checked={publicMode} onChange={()=>setPublicMode(true)} /> Public</label>
+        </div>
         <div>
           <label className="block text-sm font-medium">Message</label>
           <textarea name="message" required className="mt-1 w-full border rounded px-3 py-2 h-28" placeholder="How can we help?" />
@@ -62,6 +82,19 @@ export default function ContactPage() {
         </button>
         {sent && <div className="text-green-600 text-sm animate-pulse">Thanks! We’ll get back to you shortly.</div>}
       </form>
+
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="text-lg font-semibold mb-3">Public Messages</div>
+        <div className="space-y-3">
+          {publicMessages.length === 0 && <div className="text-slate-500 text-sm">No public messages yet.</div>}
+          {publicMessages.map((m: {name:string;message:string;created_at:string}, i: number) => (
+            <div key={i} className="border rounded-lg p-3">
+              <div className="text-sm font-semibold">{m.name}</div>
+              <div className="text-slate-700 text-sm whitespace-pre-wrap">{m.message}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
