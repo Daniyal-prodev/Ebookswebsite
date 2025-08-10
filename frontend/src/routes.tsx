@@ -12,6 +12,7 @@ import LoginPage from "./views/LoginPage";
 import SignupPage from "./views/SignupPage";
 import AccountPage from "./views/AccountPage";
 import OAuthCallback from "./views/OAuthCallback";
+import VerifyEmailPage from "./views/VerifyEmailPage";
 import AdminLoginPage from "./views/admin/AdminLoginPage";
 import AdminDashboard from "./views/admin/AdminDashboard";
 import AdminProducts from "./views/admin/AdminProducts";
@@ -45,6 +46,7 @@ const router = createBrowserRouter([
       { path: "success/:orderId", element: <ProtectedCustomer><OrderSuccessPage /></ProtectedCustomer> },
       { path: "login", element: <LoginPage /> },
       { path: "signup", element: <SignupPage /> },
+      { path: "verify", element: <VerifyEmailPage /> },
       { path: "oauth/callback/:provider", element: <OAuthCallback /> },
       { path: "account", element: <ProtectedCustomer><AccountPage /></ProtectedCustomer> },
     ],

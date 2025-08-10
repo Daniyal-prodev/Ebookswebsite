@@ -15,9 +15,9 @@ export default function SignupPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await apiPost<{ access_token: string }>("/auth/customer/signup", { name, email, password });
-      localStorage.setItem("customer_token", res.access_token);
-      nav("/account");
+      await apiPost<{ ok: boolean; needs_verification: boolean }>("/auth/customer/signup", { name, email, password });
+      localStorage.setItem("pending_email", email);
+      nav(`/verify?email=${encodeURIComponent(email)}`);
     } catch (e) {
       setError("Unable to create account");
     } finally {
