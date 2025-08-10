@@ -43,7 +43,10 @@ export default function VerifyEmailPage() {
     setError("");
     setInfo("");
     try {
-      await apiPost<{ ok: boolean }>("/auth/customer/resend", { email });
+      const r = await apiPost<any>("/auth/customer/resend", { email });
+      if (r && (r as any).dev_code) {
+        localStorage.setItem("pending_dev_code", String((r as any).dev_code));
+      }
       setInfo("Verification code sent. Check your email.");
     } catch (e) {
       setError("Unable to resend code");
@@ -58,6 +61,14 @@ export default function VerifyEmailPage() {
       <form onSubmit={onVerify} className="space-y-3 bg-white rounded-xl shadow p-6">
         <input className="w-full border rounded px-3 py-2" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
         <input className="w-full border rounded px-3 py-2" placeholder="Verification code" value={code} onChange={e=>setCode(e.target.value)} />
+        {localStorage.getItem("pending_dev_code") && (
+          <div className="text-xs text-slate-500">
+            Dev preview code:{" "}
+            <button type="button" className="underline" onClick={()=>setCode(localStorage.getItem("pending_dev_code")||"")}>
+              {localStorage.getItem("pending_dev_code")}
+            </button>
+          </div>
+        )}
         {error && <div className="text-red-600 text-sm">{error}</div>}
         {info && <div className="text-green-600 text-sm">{info}</div>}
         <button disabled={loading} className="w-full bg-pink-600 text-white rounded py-2">{loading ? "Verifying..." : "Verify"}</button>

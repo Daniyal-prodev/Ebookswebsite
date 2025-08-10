@@ -15,8 +15,11 @@ export default function SignupPage() {
     setLoading(true);
     setError("");
     try {
-      await apiPost<{ ok: boolean; needs_verification: boolean }>("/auth/customer/signup", { name, email, password });
+      const res = await apiPost<any>("/auth/customer/signup", { name, email, password });
       localStorage.setItem("pending_email", email);
+      if (res && (res as any).dev_code) {
+        localStorage.setItem("pending_dev_code", String((res as any).dev_code));
+      }
       nav(`/verify?email=${encodeURIComponent(email)}`);
     } catch (e) {
       setError("Unable to create account");
