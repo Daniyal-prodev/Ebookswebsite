@@ -29,8 +29,8 @@ export default function HomePage() {
         </div>
         <div className="rounded-2xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden">
           <img
-            src="https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1600&auto=format&fit=crop"
-            alt="Kids reading"
+            src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=1600&auto=format&fit=crop"
+            alt="Colorful children's books theme matching site palette"
             className="w-full h-[20rem] md:h-[24rem] object-cover"
           />
         </div>
