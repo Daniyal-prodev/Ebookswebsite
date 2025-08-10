@@ -33,6 +33,10 @@ Endpoints:
 - POST /auth/customer/verify
 - POST /auth/customer/resend
 
+Dev preview without SMTP:
+- Set DEV_EXPOSE_VERIFY_CODE=true in backend/.env for development. When SMTP_* are not set, the backend will include "dev_code" in the JSON response of signup/resend so you can paste it on the Verify page.
+- Do not enable this in production.
+
 ## Social login (Google, Facebook, GitHub)
 - Login and Signup pages include social buttons.
 - Dev mode: If OAUTH_DEV_AUTO_LOGIN=true and provider CLIENT_ID/REDIRECT_URL are missing, backend will simulate login.

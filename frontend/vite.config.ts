@@ -10,6 +10,8 @@ export default defineConfig({
     },
   },
   server: {
+    allowedHosts: ["animated-kids-app-tunnel-lg7r5bs0.devinapps.com"],
+    host: true,
     proxy: {
       "/api": {
         target: "http://localhost:8000",

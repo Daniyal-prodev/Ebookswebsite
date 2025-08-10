@@ -169,7 +169,12 @@ def customer_signup(payload: CustomerSignup):
     _verification_codes[payload.email] = {"code": code, "expires_at": (datetime.utcnow().timestamp() + 600)}
     _save_verify()
     _send_email(payload.email, "Your verification code", f"Your verification code is: {code}")
-    return {"ok": True, "needs_verification": True}
+    dev_expose = os.getenv("DEV_EXPOSE_VERIFY_CODE", "false").lower() == "true"
+    smtp_configured = bool(os.getenv("SMTP_HOST", "") and os.getenv("SMTP_USERNAME", "") and os.getenv("SMTP_PASSWORD", ""))
+    resp: Dict[str, str] = {"ok": "true", "needs_verification": "true"}  # values as strings to satisfy Dict[str,str] typing
+    if dev_expose and not smtp_configured:
+        resp["dev_code"] = code
+    return resp
 @app.post("/auth/customer/verify")
 def customer_verify(payload: Dict[str, str]):
     email = payload.get("email") or ""
@@ -205,7 +210,12 @@ def customer_resend(payload: Dict[str, str]):
     _verification_codes[email] = {"code": code, "expires_at": (datetime.utcnow().timestamp() + 600)}
     _save_verify()
     _send_email(email, "Your verification code", f"Your verification code is: {code}")
-    return {"ok": True}
+    dev_expose = os.getenv("DEV_EXPOSE_VERIFY_CODE", "false").lower() == "true"
+    smtp_configured = bool(os.getenv("SMTP_HOST", "") and os.getenv("SMTP_USERNAME", "") and os.getenv("SMTP_PASSWORD", ""))
+    resp: Dict[str, str] = {"ok": "true"}
+    if dev_expose and not smtp_configured:
+        resp["dev_code"] = code
+    return resp
 
 
 
