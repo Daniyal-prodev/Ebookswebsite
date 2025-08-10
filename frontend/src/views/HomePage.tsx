@@ -29,8 +29,8 @@ export default function HomePage() {
         </div>
         <div className="rounded-2xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden">
           <img
-            src="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?q=80&w=1600&auto=format&fit=crop"
-            alt="Happy kids reading books"
+            src="https://media.giphy.com/media/26BRuo6sLetdllPAQ/giphy.gif"
+            alt="Animated kids reading and learning"
             className="w-full h-[20rem] md:h-[24rem] object-cover"
           />
         </div>

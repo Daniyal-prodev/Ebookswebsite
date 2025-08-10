@@ -28,8 +28,11 @@ security = HTTPBearer()
 _products: Dict[str, Product] = {}
 _orders: Dict[str, Order] = {}
 _customers: Dict[str, Dict[str, str]] = {}
+_verification_codes: Dict[str, Dict[str, str]] = {}
 PRODUCTS_DB_PATH = os.getenv("PRODUCTS_DB_PATH", os.path.join(os.path.dirname(__file__), "products.json"))
 PRODUCTS_HISTORY_PATH = os.getenv("PRODUCTS_HISTORY_PATH", os.path.join(os.path.dirname(__file__), "products_history.json"))
+CUSTOMERS_DB_PATH = os.getenv("CUSTOMERS_DB_PATH", os.path.join(os.path.dirname(__file__), "customers.json"))
+VERIFY_DB_PATH = os.getenv("VERIFY_DB_PATH", os.path.join(os.path.dirname(__file__), "verify_codes.json"))
 
 _public_messages: List[Dict[str, str]] = []
 _product_history: Dict[str, List[Dict[str, str]]] = {}
@@ -58,6 +61,62 @@ def _save_products():
             json.dump(data, f)
     except Exception:
         pass
+
+def _save_customers():
+    try:
+        with open(CUSTOMERS_DB_PATH, "w", encoding="utf-8") as f:
+            json.dump(_customers, f)
+    except Exception:
+        pass
+
+def _load_customers():
+    try:
+        if os.path.exists(CUSTOMERS_DB_PATH):
+            with open(CUSTOMERS_DB_PATH, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+                for k,v in raw.items():
+                    _customers[k] = v
+    except Exception:
+        pass
+
+def _save_verify():
+    try:
+        with open(VERIFY_DB_PATH, "w", encoding="utf-8") as f:
+            json.dump(_verification_codes, f)
+    except Exception:
+        pass
+
+def _load_verify():
+    try:
+        if os.path.exists(VERIFY_DB_PATH):
+            with open(VERIFY_DB_PATH, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+                for k,v in raw.items():
+                    _verification_codes[k] = v
+    except Exception:
+        pass
+
+def _send_email(recipient: str, subject: str, body: str):
+    host = os.getenv("SMTP_HOST", "")
+    port = int(os.getenv("SMTP_PORT", "587"))
+    username = os.getenv("SMTP_USERNAME", "")
+    password = os.getenv("SMTP_PASSWORD", "")
+    use_tls = os.getenv("SMTP_USE_TLS", "true").lower() != "false"
+    if host and username and password:
+        msg = MIMEText(body, "plain", "utf-8")
+        msg["Subject"] = subject
+        msg["From"] = username
+        msg["To"] = recipient
+        with smtplib.SMTP(host, port, timeout=15) as server:
+            if use_tls:
+                server.starttls()
+            server.login(username, password)
+            server.sendmail(username, [recipient], msg.as_string())
+    else:
+        print("DEV EMAIL:", subject, body)
+
+def _gen_code() -> str:
+    return str(uuid.uuid4().int)[0:6]
 
 def _load_products():
     try:
@@ -88,6 +147,8 @@ def _load_history():
 
 _load_products()
 _load_history()
+_load_customers()
+_load_verify()
 
 @app.get("/healthz")
 async def healthz():
@@ -98,29 +159,89 @@ def login(payload: LoginRequest):
     token = authenticate(payload.email, payload.password)
     return LoginResponse(access_token=token)
 
-@app.post("/auth/customer/signup", response_model=LoginResponse)
+@app.post("/auth/customer/signup")
 def customer_signup(payload: CustomerSignup):
     if payload.email in _customers:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account already exists")
-    _customers[payload.email] = {"password": payload.password, "name": payload.name or ""}
-    token = _sign_customer(payload.email)
-    return LoginResponse(access_token=token)
+    _customers[payload.email] = {"password": payload.password, "name": payload.name or "", "verified": False, "avatar_url": ""}
+    _save_customers()
+    code = _gen_code()
+    _verification_codes[payload.email] = {"code": code, "expires_at": (datetime.utcnow().timestamp() + 600)}
+    _save_verify()
+    _send_email(payload.email, "Your verification code", f"Your verification code is: {code}")
+    return {"ok": True, "needs_verification": True}
+@app.post("/auth/customer/verify")
+def customer_verify(payload: Dict[str, str]):
+    email = payload.get("email") or ""
+    code = payload.get("code") or ""
+    entry = _verification_codes.get(email)
+    user = _customers.get(email)
+    if not entry or not user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid")
+    if entry.get("code") != code:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid")
+    try:
+        if float(entry.get("expires_at", "0")) < datetime.utcnow().timestamp():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Expired")
+    except Exception:
+        pass
+    user["verified"] = True
+    _customers[email] = user
+    _save_customers()
+    try:
+        del _verification_codes[email]
+    except Exception:
+        pass
+    _save_verify()
+    token = _sign_customer(email)
+    return {"access_token": token}
+
+@app.post("/auth/customer/resend")
+def customer_resend(payload: Dict[str, str]):
+    email = payload.get("email") or ""
+    if email not in _customers:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No account")
+    code = _gen_code()
+    _verification_codes[email] = {"code": code, "expires_at": (datetime.utcnow().timestamp() + 600)}
+    _save_verify()
+    _send_email(email, "Your verification code", f"Your verification code is: {code}")
+    return {"ok": True}
+
+
 
 @app.post("/auth/customer/login", response_model=LoginResponse)
 def customer_login(payload: CustomerLogin):
     user = _customers.get(payload.email)
     if not user or user.get("password") != payload.password:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    if not user.get("verified"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email not verified")
     token = _sign_customer(payload.email)
     return LoginResponse(access_token=token)
 
-@app.get("/me", response_model=CustomerMe)
+@app.get("/me")
 def me(credentials: HTTPAuthorizationCredentials = Depends(security)):
     email = _verify_customer(credentials.credentials)
     if not email:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
     user = _customers.get(email, {})
-    return CustomerMe(email=email, name=user.get("name") or None)
+    return {"email": email, "name": user.get("name") or None, "avatar_url": user.get("avatar_url") or ""}
+
+@app.post("/me/update")
+def me_update(payload: Dict[str, str], credentials: HTTPAuthorizationCredentials = Depends(security)):
+    email = _verify_customer(credentials.credentials)
+    if not email:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+    user = _customers.get(email, {"password": "", "name": "", "verified": True, "avatar_url": ""})
+    name = payload.get("name")
+    avatar_url = payload.get("avatar_url")
+    if name is not None:
+        user["name"] = name
+    if avatar_url is not None:
+        user["avatar_url"] = avatar_url
+    _customers[email] = user
+    _save_customers()
+    return {"email": email, "name": user.get("name") or None, "avatar_url": user.get("avatar_url") or ""}
 
 @app.post("/contact")
 def contact(payload: ContactMessage):
@@ -151,7 +272,7 @@ def oauth_start(provider: str):
     client_id = os.getenv(f"{provider.upper()}_CLIENT_ID", "")
     redirect_url = os.getenv(f"{provider.upper()}_REDIRECT_URL", "")
     if not client_id or not redirect_url:
-        return {"status": "disabled"}
+        return {"status": "dev", "auth_url": f"/oauth/{provider}/callback?email=demo+{provider}@example.com"}
     auth_url = f"https://auth.example/{provider}?client_id={client_id}&redirect_uri={redirect_url}&response_type=code&scope=basic"
     return {"status": "ok", "auth_url": auth_url}
 
