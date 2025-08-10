@@ -29,9 +29,9 @@ export default function HomePage() {
         </div>
         <div className="rounded-2xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden">
           <img
-            src="https://media.giphy.com/media/26BRuo6sLetdllPAQ/giphy.gif"
-            alt="Animated kids reading and learning"
-            className="w-full h-[20rem] md:h-[24rem] object-cover"
+            src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNGw0cXprcTFvMDJxOXkzZnZ3cGVva2N0c3N0cXRma3F4YTVzZG9lMiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/gd09ZrT3kBgu4/giphy.gif"
+            alt="Cute animated cartoon for small kids"
+            className="w-full h-[18rem] md:h-[24rem] object-cover"
           />
         </div>
       </section>
